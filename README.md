@@ -8,11 +8,15 @@ The main libraries used are : JJOE64:GraphView    - For graphical representation
                               TextTOSpeech        - For speak out the readings
                               BluetoothAPI        - For connecting the prob - bidirectional communication
                               
- Vedio1: Building JBUmeter
+ ##Vedio1: Building JBUmeter
  
  
- Vedio2: Mobile Applications Working.
+ ##Vedio2: Mobile Applications Working.
  
+
+https://user-images.githubusercontent.com/67691782/192419733-01690721-c194-49bf-b50a-afe7ef956a85.mp4
+
+
  
  
  For more information regarding JBUmeter, please do email me @ jebukthomas@gmail.com.
