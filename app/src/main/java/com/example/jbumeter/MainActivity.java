@@ -1,199 +1,442 @@
 package com.example.jbumeter;
 
-import androidx.appcompat.app.AppCompatActivity;
+
+import static com.example.jbumeter.R.color.colorAccent;
+
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
 import android.content.Intent;
-//import android.support.v7.app.AppCompatActivity;
+import android.graphics.Color;
+import android.icu.number.Precision;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.Message;
+import android.speech.tts.TextToSpeech;
+import android.support.annotation.ColorInt;
+import android.support.annotation.ColorRes;
+import android.support.annotation.DrawableRes;
+import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import com.jjoe64.graphview.GraphView;
+import com.jjoe64.graphview.Viewport;
+import com.jjoe64.graphview.series.DataPoint;
+import com.jjoe64.graphview.series.LineGraphSeries;
+
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.util.Iterator;
-import java.util.LinkedHashSet;
+import java.text.DecimalFormat;
+import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 
 
+
+
+/////////////////////////////Main Activity{///////////////////////////
 public class MainActivity extends AppCompatActivity {
+    LineGraphSeries<DataPoint> series;
 
-    // Declaring variables
-    Button dc_voltage_btn, ac_voltage_btn, resistance_btn, capacitance_btn, inductance_btn, continuity_btn, speak_result_btn, connect_bt_btn;
-    //String input_data; //Input data from probe.
-    //String control_in; //Input command from probe.
-    String control_out; //Output command for control probe parameters.
-    TextView result_view; // Display Measurements
-    TextView result_view2;
-    TextView result_view3;
-    TextView result_view4;
-    TextView label_name;  // Just app name
-    private BluetoothDevice jbuDevice;
-    private BluetoothAdapter jbuAdapter;
-    private BluetoothSocket jbuSocket;
-    private OutputStream outputStream;
-    private InputStream inputStream;
+    @Override
+    protected void onSaveInstanceState(Bundle outState)
+    {
+        super.onSaveInstanceState(outState);
+        outState.putBoolean("Connected", connected);
+        outState.putBoolean("Found BT", found_BT);
+        outState.putInt("Command", command);
+        outState.putString("inputDATA", inputDATA);
+        outState.putString("displayValue", displayValue);
 
+
+
+    }
+
+    ////////////////////////Variable initialization{//////////////////////
     static final UUID mUUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
     ///////////////////////////////////////////////All my BT paired devices\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
     //[00:24:11:0E:A2:81, FE:F5:7F:69:FC:EB, 08:ED:B9:AB:D6:F2, 28:56:C1:46:56:10, 00:24:13:21:99:E5, 59:FE:01:D9:05:E1]
     //[00:24:11:0E:A2:81, FE:F5:7F:69:FC:EB, 08:ED:B9:AB:D6:F2, 28:56:C1:46:56:10, 00:24:13:21:99:E5, 59:FE:01:D9:05:E1, 98:D3:34:90:D4:C3]
     //HC-06 = [98:D3:34:90:D4:C3]
     private final String jbuBT_Address = "98:D3:34:90:D4:C3";
+    BluetoothAdapter jbuAdapter;
+    private BluetoothDevice jbuHC06;
+    private BluetoothSocket jbuBTSocket = null;
+    private InputStream inputStream = null;
+    private OutputStream outputStream;
+    public  boolean connected = false;
+    public boolean found_BT = false;
+    int  command;
+    public String inputDATA,meterValue,displayValue, speakValue = "";
+    Button connect_btn, voltage_BTN, speak_BTN;
+    TextView result_View, statusBT, result_type, maxValue;
+    Thread runningThread, connectingThread, speakingThread;
+    boolean isRunning = true;
+    boolean isSpeaking= false;
+    TextToSpeech speakResult;
+    GraphView graph;
+    double x,y = 0.0;
+
+    /////////////////////////////////////////////////////////////////Variable Initialization}
+
+
+
+
+
+
 
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
-
-        findViewByIdes();       //Method calling Assignment of all widgets.
-        implementListeners();  //Method calling switch click listeners
-    }
-
-
-    private void findViewByIdes()
+    protected void onCreate(Bundle savedInstanceState)
     {
-        //Assignment of all widgets.
-        dc_voltage_btn = findViewById(R.id.dc_voltage_btn);
-        ac_voltage_btn = findViewById(R.id.ac_voltage_btn);
-        resistance_btn = findViewById(R.id.resistance_btn);
-        capacitance_btn = findViewById(R.id.capacitance_btn);
-        inductance_btn = findViewById(R.id.inductance_btn);
-        continuity_btn = findViewById(R.id.continuity_btn);
-        speak_result_btn = findViewById(R.id.speak_result_btn);
-        connect_bt_btn = findViewById(R.id.connect_bt_btn);
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);////////Calling main screen activity
 
-        result_view = findViewById(R.id.result_view);
-        result_view2 = findViewById(R.id.result_view2);
-        result_view3 = findViewById(R.id.result_view3);
-        result_view4 = findViewById(R.id.result_view4);
-        label_name = findViewById(R.id.label_name);
+        findViewByIdes();
+        implementButtonListeners();
+        initGraph();
+        initSpeak();
+
+        if(savedInstanceState != null)
+        {
+            connected = savedInstanceState.getBoolean("Connected");
+            found_BT  = savedInstanceState.getBoolean("Found BT");
+            inputDATA = savedInstanceState.getString("inputDATA");
+            displayValue=savedInstanceState.getString("displayValue");
+
+        }
+
     }
 
 
-    private void implementListeners(){      //Method for switch click listeners
-        // DC Voltage Click Event
-        dc_voltage_btn.setOnClickListener(new View.OnClickListener() {
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    public void initGraph()
+    {
+        //double y,x;
+        //x = -5.0;
+        x = 0.0;
+        graph = (GraphView) findViewById(R.id.graph);
+        graph.setBackgroundResource(R.drawable.graph_background);
+        series = new LineGraphSeries<DataPoint>();
+        series.setColor(Color.GREEN);
+        Viewport viewport = graph.getViewport();
+        viewport.setYAxisBoundsManual(true);
+        viewport.setScalable(true);
+        viewport.setScrollable(true);
+        viewport.setMinY(-3.0);
+        viewport.setMaxY(3.0);
+        viewport.setMaxX(100);
+        viewport.setMinX(0);
+        viewport.scrollToEnd();
+        /*for(int i = 0; i<500; i++)
+        {
+            x = x + 0.1;
+            y = Math.sin(x);
+            series.appendData(new DataPoint(x,y),true, 500);
+        }*/
+        graph.addSeries(series);
+    }
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    private void initSpeak()
+    {
+        speakResult = new TextToSpeech(this, new TextToSpeech.OnInitListener() {
             @Override
-            public void onClick(View v) {
-                Toast.makeText(MainActivity.this, "DC Voltage selected", Toast.LENGTH_SHORT).show();
-                Log.v("dc_voltage_btn", "DC Voltage selected");
-                result_view.setText("0.000V⎓");
-                result_view2.setText("0.000V≂");
-                result_view3.setText("0.000 Ω");
-                result_view4.setText("0.000uF");
-                control_out = "DCV";
-                try {
-                    outputStream.write(control_out.getBytes()); //Transmit control data to bluetooth meter
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
+            public void onInit(int status) {
+                if(status == TextToSpeech.SUCCESS){
+                    int langStatus = speakResult.setLanguage(Locale.ENGLISH);
+
+                    if(langStatus == TextToSpeech.LANG_MISSING_DATA || langStatus == TextToSpeech.LANG_NOT_SUPPORTED)
+                    {
+                        Toast.makeText(getApplicationContext(),"Language not supported", Toast.LENGTH_SHORT).show();
+                        Log.e("SpeakValue", "Language not supported" );
+                    }else
+                        {
+                            speak_BTN.setEnabled(true);
+                        }
+                }else
+                    {
+                        Log.e("SpeakValue", "Initialization Failed");
+                    }
             }
         });
 
-        // AC Voltage Click Event
-        ac_voltage_btn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Toast.makeText(MainActivity.this, "AC Voltage selected", Toast.LENGTH_SHORT).show();
-                Log.v("ac_voltage_btn", "AC Voltage selected");
-                result_view.setText("0.000V≂");
-                result_view2.setText("0.000V⎓");
-                result_view3.setText("0.000 Ω");
-                result_view4.setText("0.000uF");
-                control_out = "ACV";
-                try {
-                    outputStream.write(control_out.getBytes());
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-        });
-
-        resistance_btn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Toast.makeText(MainActivity.this, "Resistance Selected", Toast.LENGTH_SHORT).show();
-                Log.v("resistance_btn", "Resistance Selected");
-                result_view.setText("Resistance");
-                control_out = "RES";
-                try {
-                    outputStream.write(control_out.getBytes());
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-        });
-
-        capacitance_btn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Toast.makeText(MainActivity.this, "Capacitance Selected", Toast.LENGTH_SHORT).show();
-                Log.v("capacitance_btn", "Capacitance Selected");
-                result_view.setText("Capacitance");
-                control_out = "CAP";
-                try {
-                    outputStream.write(control_out.getBytes());
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-        });
-
-        inductance_btn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Toast.makeText(MainActivity.this, "Inductance Selected", Toast.LENGTH_SHORT).show();
-                Log.v("inductance_btn", "Inductance Selected");
-                result_view.setText("Inductance");
-                control_out = "IND";
-                try {
-                    outputStream.write(control_out.getBytes()); //Data send to bluetooth meter
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-        });
-
-        continuity_btn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Toast.makeText(MainActivity.this, "Continuity Selected", Toast.LENGTH_SHORT).show();
-                result_view.setText("Continuity");
-                control_out = "CON";
-                try {
-                    outputStream.write(control_out.getBytes());
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-        });
-
-        connect_bt_btn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (BTinit()) {
-                    jbuBTconnect();
-                }
-
-            }
-        });
     }
 
 
+
+    private void findViewByIdes() {
+        //////////////////////Variable assignment{///////////////////
+        connect_btn = (Button) findViewById(R.id.connect_bt_btn);
+        voltage_BTN = (Button) findViewById(R.id.dc_voltage_btn);
+        speak_BTN = (Button) findViewById(R.id.speak_result_btn);
+        result_View = (TextView) findViewById(R.id.result_view);
+        maxValue    = (TextView)findViewById(R.id.result_view3);
+        statusBT = (TextView) findViewById(R.id.result_view4);
+        result_type = (TextView) findViewById(R.id.result_type);
+        /////////////////////////////////////////////////////////////Variable Assignment}
+
+    }
+
+     private void implementButtonListeners(){
+
+        //////////////////////Button listeners//////////////////////
+        connect_btn.setOnClickListener(new View.OnClickListener() ////////<Connect Button>
+        {
+            @Override
+            public void onClick(View v) {
+
+                System.out.println("Fount BT =========================== " + found_BT);
+                System.out.println("Connected BT =========================== " + connected);
+                result_View.setText("JBUmeter");
+                result_type.setText("");
+
+                connectingThread = new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+
+                        if(!found_BT)
+                        {
+                            BTinit();                       //Boolean method to check Bluetooth is available or not
+                            command = 82;
+                        }
+                        try {
+                            Thread.sleep(1);
+                            ConnectBTN();
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                        System.out.println("-------------------------connected-------------------");
+                    }
+                }); connectingThread.start();
+
+            }
+        });////////////////////connect Button}
+
+
+        voltage_BTN.setOnClickListener(new View.OnClickListener() { ///////<Voltage Button>
+            @Override
+            public void onClick(View v) {
+
+
+                if(isRunning)
+                {
+                    isRunning = false;
+                    voltage_BTN.setBackgroundResource(R.drawable.button_border);
+                }else
+                    {
+                        isRunning = true;
+                        voltage_BTN.setBackgroundResource(R.drawable.button_pressed);
+                    }
+                if(connected) {
+
+                    command = 44;
+                    try {
+                        outputStream = jbuBTSocket.getOutputStream(); //Already assigned while connecting.
+                        outputStream.write(44);
+                        //Toast.makeText(getApplicationContext(),"Sending command",Toast.LENGTH_SHORT).show();
+                    } catch (IOException e) {
+                        Toast.makeText(getApplicationContext(), "Device not found", Toast.LENGTH_SHORT).show();
+                        connect_btn.setText("Connect Device");
+                        found_BT = false;
+                        connected = false;
+                        statusBT.setText("DEVICE NOT REACHABLE");
+                        e.printStackTrace();
+                    }
+
+                }
+                else
+                    {
+                        statusBT.setText("DEVICE NOT REACHABLE");
+                    }
+
+                //Thread runningThread;
+                //boolean isRunning;
+
+                runningThread = new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        while (isRunning && connected)
+                        {
+                            x = x + 1.0;
+
+                            try {
+                                outputStream = jbuBTSocket.getOutputStream(); //Already assigned while connecting.
+                                outputStream.write(44);
+                                DATAreceive();
+                                speakValue = meterValue + " Volt dc" ;
+                                Thread.sleep(1);
+                                System.out.println("---------------------loop-------------------");
+                            }catch (Exception e)
+                            {
+
+                            }
+
+                            runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    series.appendData(new DataPoint(x,y),true, 5000);
+                                }
+                            });
+
+
+                        }
+
+                    }
+                }); runningThread.start();
+
+            }
+        });////////////////////voltage Button}
+
+
+         speak_BTN.setOnClickListener(new View.OnClickListener() {//////////////////Speak button
+             @Override
+             public void onClick(View v) {
+
+                 if(!isSpeaking)
+                 {
+                     isSpeaking = true;
+                     speak_BTN.setBackgroundResource(R.drawable.button_pressed);
+                 }else
+                 {
+                     isSpeaking = false;
+                     speak_BTN.setBackgroundResource(R.drawable.button_border);
+                     speakResult.stop();
+                 }
+                 float pitch = 1;
+                 float speed = 1;
+                 speakResult.setPitch(pitch);
+                 speakResult.setSpeechRate(speed);
+                 if(!connected){
+                     speakValue = "It's more than a multimeter, Designed and developed by Jebumon K Thomas. Please connect the device";
+                 }
+                 speakingThread = new Thread(new Runnable() {
+                     @Override
+                     public void run() {
+
+                      do {
+                          try {
+                              System.out.println("=============================Speaking========================");
+
+                              speakResult.speak(speakValue, TextToSpeech.QUEUE_FLUSH, null);
+
+                              Thread.sleep(3000);
+                          } catch (InterruptedException e) {
+                              e.printStackTrace();
+                          }
+                      }while ( isSpeaking && connected);
+
+                     }
+                 }); speakingThread.start();
+             }
+         });
+
+
+    }////////////////////////////////////////////////////////Implement listeners}
+
+
+    public void ConnectBTN()
+    {
+        if(!connected)
+        {
+            System.out.println("----------------------------ConnectBTN-------------");
+            statusBT.setText("Connecting...");
+            BTconnect();    //Method to connect BT
+        }
+        else
+        {
+            try
+            {
+                //System.out.println("Try to close ===========================================");
+                //System.out.println("BT Connected Status = " + connected + jbuBTSocket.isConnected());
+                jbuBTSocket.close();                            //Bluetooth disconnecting
+                connect_btn.setText("Connect Device");
+                connect_btn.setBackgroundResource(R.drawable.button_border);
+                statusBT.setText("Device Disconnected");
+                result_type.setText("");
+                connected = false;
+                System.out.println("BT Connected Status = " + connected + jbuBTSocket.isConnected());
+                System.out.println("Try to close ===========================================");
+
+            }
+            catch (IOException e)
+            {
+                e.printStackTrace();
+            }
+        }
+
+    }
+
+
+    public void DATAreceive(){
+        final InputStream inputStream;
+        System.out.println(" Thread called 888888888888888888888888888888888888");
+        InputStream tempIn = null;
+
+        try {
+            tempIn = jbuBTSocket.getInputStream();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        inputStream = tempIn;
+
+        System.out.println(" Out put = ////////////////////////");
+        BufferedReader r = new BufferedReader(new InputStreamReader(inputStream));
+        String x = "";
+        String total = "";
+        try {
+            x = r.readLine();
+            System.out.println(" Out put =1 =" + x);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        System.out.println(" Out put =" + x);
+        int length = x.length();
+        System.out.println(" String length =" + length);
+
+////////////////////////////Splitting input data///////////////////////////
+        String[] splitData = x.split("-");
+        String dataCount = splitData[0];
+        String rawData = splitData[1];
+        String dataType = splitData[2];
+        String valueData = splitData[3];
+
+        displayValue = x;
+        DecimalFormat df = new DecimalFormat("0.000");
+        double tempMeterValue = ((Double.parseDouble(rawData) - 512) *5) / 1024 ; // 512 is the middle value of 10bit adc(1024/2)
+
+        meterValue = df.format(tempMeterValue) + " ";
+        //meterValue = valueData;
+        System.out.println("Voltage =" + meterValue);
+        result_View.setText(meterValue);
+        //y = Double.parseDouble(meterValue);     //For Graph
+        y= tempMeterValue;
+        result_type.setText(dataType);
+        statusBT.setText(displayValue);
+
+    }
+
+    /////////////////////////Bluetooth Initialization{////////////////////
     public boolean BTinit()
     {
-        boolean found_BT = false;
+        found_BT = false;   //initializing flag for bluetooth found or not
         jbuAdapter = BluetoothAdapter.getDefaultAdapter();
+        System.out.println("***************************************************");
+        System.out.println("jbuAdapter " +jbuAdapter);
+        System.out.println("***************************************************");
 
         if(jbuAdapter == null)
         {
-            Toast.makeText(MainActivity.this, "Device not supports Bluetooth", Toast.LENGTH_SHORT).show();
+            Toast.makeText(getApplicationContext(),"Device doesn't support bluetooth", Toast.LENGTH_SHORT).show();
         }
         if(!jbuAdapter.isEnabled())
         {
@@ -209,46 +452,69 @@ public class MainActivity extends AppCompatActivity {
                 e.printStackTrace();
             }
         }
+        Set<BluetoothDevice> pairedDevices = jbuAdapter.getBondedDevices();
 
-        Set<BluetoothDevice> bondedDevices = jbuAdapter.getBondedDevices();
-        if(bondedDevices.isEmpty())
+        if(pairedDevices.isEmpty())
         {
-            Toast.makeText(MainActivity.this, "First pair the device", Toast.LENGTH_SHORT).show();
+            Toast.makeText(getApplicationContext(),"Please pair the device first", Toast.LENGTH_SHORT).show();
         }
         else
-        {
-            for (BluetoothDevice iterator : bondedDevices)
             {
-                String tempIterator = iterator.toString();
-                if (tempIterator.equals(jbuBT_Address)) {
-                    jbuDevice = iterator;
-                    found_BT = true;
-                    break;
+                for (BluetoothDevice iterator : pairedDevices)
+                {
+                    /*System.out.println("***************************************************");
+                    System.out.println("BT : " + iterator);
+                    System.out.println("***************************************************");*/
+                    String tempIterator = iterator.toString(); //iterator Object to string for compare
+                    System.out.println(tempIterator);
+                    //System.out.println(jbuBT_Address);
+
+                    if(tempIterator.equals(jbuBT_Address)) // checking device is found or not
+                    {
+                        System.out.println("*************************Found jbuBT***************************");
+                        jbuHC06 = iterator; //Module address fetching for connecting
+                        found_BT = true;
+                        break;
+                    }
                 }
             }
-        }
+
         return found_BT;
-    }
+    }/////////////////////////////////////////////////////////Bluetooth Initialization}
 
-    public boolean jbuBTconnect()
+    //////////////////////////////Bluetooth Connect{//////////////////////////////////
+    public boolean BTconnect()
     {
-        boolean connected = true;
+        System.out.println("-------------------BTconnect----------------------");
+        int counter = 0;
+        do {
+            try {
+                //Toast.makeText(getApplicationContext(),"Connecting...",Toast.LENGTH_SHORT).show();
+                jbuBTSocket = jbuHC06.createRfcommSocketToServiceRecord(mUUID);
+                jbuBTSocket.connect();
+                statusBT.setText("Device Connected !");
+                connected = true;
+            } catch (IOException e)
+            {
+                e.printStackTrace();
+                connected = false;
+                statusBT.setText("Retry...");
+            }
+            counter++;
+        }while (!jbuBTSocket.isConnected() && counter <3);
 
-        try
-        {
-            jbuSocket = jbuDevice.createRfcommSocketToServiceRecord(mUUID);
-            jbuSocket.connect();
-            Toast.makeText(getApplicationContext(), "Device successfully connected", Toast.LENGTH_LONG).show();
-        } catch (IOException e)
-        {
-            e.printStackTrace();
-            connected = false;
-        }
         if(connected)
         {
             try
             {
-                outputStream = jbuSocket.getOutputStream();
+                inputStream  = jbuBTSocket.getInputStream();
+                outputStream = jbuBTSocket.getOutputStream();
+               outputStream.write(82);
+               System.out.println("JBUmeter is connected successfully");
+               //statusBT.setText("JBUmeter is connected");
+               connect_btn.setText("Disconnect");
+               connect_btn.setBackgroundResource(R.drawable.button_pressed);
+               System.out.println(outputStream);
             }
             catch (IOException e)
             {
@@ -256,10 +522,68 @@ public class MainActivity extends AppCompatActivity {
             }
         }
         return connected;
+    } //////////////////////////////Bluetooth Connect}//////////////////////////////////
 
-    }
 
 
-}
 
+
+
+
+
+       /* jbuAdapter = BluetoothAdapter.getDefaultAdapter();
+        System.out.println(jbuAdapter.getBondedDevices());
+
+        jbuHC06 = jbuAdapter.getRemoteDevice(jbuBT_Address);
+        System.out.println(jbuHC06.getName());
+
+
+        int counter = 0;
+        do{
+            try {
+                jbuBTSocket = jbuHC06.createInsecureRfcommSocketToServiceRecord(mUUID);
+                System.out.println(jbuBTSocket);
+                jbuBTSocket.connect();
+                System.out.println(jbuBTSocket.isConnected());
+
+            }catch (IOException e){
+
+                e.printStackTrace();
+            }
+            counter++;
+
+        }while (!jbuBTSocket.isConnected() && counter < 3);
+
+        try {
+            outputStream = jbuBTSocket.getOutputStream();
+            outputStream.write(48);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+
+
+        try {
+            inputStream = jbuBTSocket.getInputStream();
+            inputStream.skip(inputStream.available());
+
+            for(int i = 0; i< 26; i++) {
+
+                byte b = (byte) inputStream.read();
+                System.out.println((char)b);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        try {
+            jbuBTSocket.close();
+            System.out.println(jbuBTSocket.isConnected());
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }*/
+
+
+    }/////////////////////////////Main activity}
 
