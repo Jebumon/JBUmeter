@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#FFFEFB"
+    tools:context=".MainActivity">
+
+    <TextView
+        android:id="@+id/result_view"
+        android:layout_width="604dp"
+        android:layout_height="190dp"
+        android:background="@drawable/text_border"
+        android:gravity="end"
+        android:paddingHorizontal="15sp"
+        android:text="0.000"
+        android:textColor="#FFFFFF"
+        android:textSize="70dp"
+        android:textStyle="bold"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.125"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.294"
+        tools:ignore="HardcodedText,SpUsage" />
+
+    <TextView
+        android:id="@+id/result_view2"
+        android:layout_width="187dp"
+        android:layout_height="39dp"
+        android:gravity="end"
+        android:paddingLeft="1sp"
+        android:paddingEnd="1sp"
+        android:paddingRight="1sp"
+        android:text="00000.00"
+        android:textColor="#E4E2E2"
+        android:textSize="33dp"
+        app:layout_constraintBottom_toBottomOf="@+id/result_view"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.043"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="@+id/result_view"
+        app:layout_constraintVertical_bias="0.4"
+        tools:ignore="HardcodedText,SpUsage" />
+
+    <TextView
+        android:id="@+id/result_view3"
+        android:layout_width="187dp"
+        android:layout_height="37dp"
+        android:gravity="end"
+        android:paddingLeft="1sp"
+        android:paddingEnd="1sp"
+        android:paddingRight="1sp"
+        android:text="00000.00"
+        android:textColor="#E4E2E2"
+        android:textSize="33dp"
+        app:layout_constraintBottom_toBottomOf="@+id/result_view"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.043"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="@+id/result_view"
+        app:layout_constraintVertical_bias="0.647"
+        tools:ignore="HardcodedText,SpUsage" />
+
+    <TextView
+        android:id="@+id/result_view4"
+        android:layout_width="192dp"
+        android:layout_height="42dp"
+        android:gravity="end"
+        android:paddingLeft="1sp"
+        android:paddingEnd="1sp"
+        android:paddingRight="1sp"
+        android:text="00000.00"
+        android:textColor="#E4E2E2"
+        android:textSize="33dp"
+        app:layout_constraintBottom_toBottomOf="@+id/result_view"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.033"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="@+id/result_view"
+        app:layout_constraintVertical_bias="0.948"
+        tools:ignore="HardcodedText,SpUsage" />
+
+    <TextView
+        android:id="@+id/label_name"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="4sp"
+        android:layout_marginLeft="4sp"
+        android:layout_marginTop="4sp"
+        android:background="@drawable/button_border"
+        android:text="JBU"
+        android:textColor="#BCBBB9"
+        android:textSize="40sp"
+        android:textStyle="bold"
+        app:drawableEndCompat="@drawable/ic_round_meter_50"
+        app:drawableRightCompat="@drawable/ic_round_meter_50"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:ignore="HardcodedText" />
+
+    <ToggleButton
+        android:id="@+id/toggleButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="ToggleButton"
+        tools:layout_editor_absoluteX="39dp"
+        tools:layout_editor_absoluteY="354dp" />
+
+
+</androidx.constraintlayout.widget.ConstraintLayout>
